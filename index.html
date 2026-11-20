@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1b1410">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg">
+<link rel="apple-touch-icon" href="icon.svg">
+<title>Dune Buddy</title>
+<style>
+:root{--bg:#1b1410;--card:#2a201a;--line:#3d2f26;--text:#f2e6d4;--dim:#b8a48c;--accent:#f4b860;--accent2:#d98a3d;--good:#8fc79a;--bad:#e8826b}
+body.night{--bg:#000;--card:#120000;--line:#330000;--text:#ff3b2f;--dim:#a3241c;--accent:#ff3b2f;--accent2:#c2261d;--good:#ff3b2f;--bad:#ff3b2f}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+body{padding:env(safe-area-inset-top) env(safe-area-inset-right) calc(76px + env(safe-area-inset-bottom)) env(safe-area-inset-left);min-height:100vh}
+header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px 6px}
+h1{font-size:20px;margin:0;letter-spacing:.3px}
+h1 span{color:var(--accent)}
+.iconbtn{background:var(--card);border:1px solid var(--line);color:var(--text);border-radius:999px;padding:8px 14px;font-size:14px}
+main{padding:8px 16px}
+.view{display:none}.view.on{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px}
+.label{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin-bottom:8px}
+button.big{width:100%;padding:16px;border-radius:14px;border:0;background:var(--accent);color:#1b1410;font-weight:700;font-size:17px}
+body.night button.big{color:#000}
+button.ghost{background:transparent;border:1px solid var(--line);color:var(--text);border-radius:12px;padding:10px 14px;font-size:15px}
+.row{display:flex;gap:8px;align-items:center}
+input[type=text],select{flex:1;min-width:0;background:var(--bg);border:1px solid var(--line);color:var(--text);border-radius:12px;padding:12px;font-size:16px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.chip{padding:8px 12px;border-radius:999px;border:1px solid var(--line);background:var(--bg);color:var(--text);font-size:14px}
+/* compass */
+.dial{position:relative;width:min(78vw,300px);aspect-ratio:1;margin:6px auto 4px;border-radius:50%;border:2px solid var(--line);background:radial-gradient(circle,var(--card) 55%,var(--bg) 100%)}
+.rose{position:absolute;inset:0;transition:transform .25s linear}
+.rose b{position:absolute;left:50%;transform:translateX(-50%);font-size:13px;color:var(--dim)}
+.rose .n{top:8px;color:var(--bad)}.rose .s{bottom:8px}
+.rose .e,.rose .w{top:50%;transform:translateY(-50%)}.rose .e{right:10px;left:auto}.rose .w{left:10px}
+.arrow{position:absolute;inset:0;transition:transform .25s linear}
+.arrow svg{width:100%;height:100%}
+.dist{text-align:center;font-size:44px;font-weight:800;margin-top:6px}
+.sub{text-align:center;color:var(--dim);font-size:14px}
+.status{text-align:center;font-size:13px;color:var(--dim);margin-top:6px}
+.spot{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.spot:first-child{border-top:0}
+.spot .name{flex:1}
+.spot .name small{display:block;color:var(--dim);font-size:12px}
+.spot.sel .name{color:var(--accent);font-weight:700}
+.x{background:none;border:0;color:var(--dim);font-size:20px;padding:4px 8px}
+/* gear */
+.item{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.item:first-child{border-top:0}
+.item input[type=checkbox]{width:24px;height:24px;accent-color:var(--accent)}
+.item .t{flex:1;min-width:0}
+.item.done .t{text-decoration:line-through;color:var(--dim)}
+.item select{flex:0 0 auto;width:auto;max-width:42%;padding:8px;font-size:14px}
+.progress{height:8px;border-radius:99px;background:var(--bg);overflow:hidden;margin-top:6px}
+.progress i{display:block;height:100%;background:var(--accent);width:0;transition:width .3s}
+nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;background:none;border:0;color:var(--dim);padding:12px 0 14px;font-size:13px}
+nav button.on{color:var(--accent);font-weight:700}
+nav button span{display:block;font-size:22px}
+.toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--accent);color:#1b1410;padding:10px 16px;border-radius:12px;font-weight:600;opacity:0;transition:opacity .25s;pointer-events:none;z-index:9}
+.toast.show{opacity:1}
+.muted{color:var(--dim);font-size:14px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Dune <span>Buddy</span></h1>
+  <button class="iconbtn" id="nightBtn">🔴 Night</button>
+</header>
+
+<main>
+<!-- BACK TO CAMP -->
+<section class="view on" id="v-camp">
+  <div class="card">
+    <div class="label" id="targetLabel">No spot saved yet</div>
+    <div class="dial">
+      <div class="rose" id="rose"><b class="n">N</b><b class="e">E</b><b class="s">S</b><b class="w">W</b></div>
+      <div class="arrow" id="arrow">
+        <svg viewBox="0 0 100 100"><path d="M50 12 L66 58 L50 50 L34 58 Z" fill="currentColor" style="color:var(--accent)"/><circle cx="50" cy="50" r="4" fill="currentColor" style="color:var(--text)"/></svg>
+      </div>
+    </div>
+    <div class="dist" id="dist">—</div>
+    <div class="sub" id="bearingTxt">Save a spot, then tap Start</div>
+    <div class="status" id="status"></div>
+    <div class="row" style="margin-top:14px">
+      <button class="big" id="trackBtn">▶ Start guiding</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="label">Save where you are now</div>
+    <div class="row">
+      <input type="text" id="spotName" placeholder="e.g. Camp, Car, Toilet tent" maxlength="30">
+      <button class="ghost" id="saveSpot">📍 Save</button>
+    </div>
+    <div class="chips">
+      <button class="chip" data-quick="⛺ Camp">⛺ Camp</button>
+      <button class="chip" data-quick="🚙 Car">🚙 Car</button>
+      <button class="chip" data-quick="🔥 Firepit">🔥 Firepit</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="label">Saved spots (tap to guide)</div>
+    <div id="spots"></div>
+  </div>
+</section>
+
+<!-- GEAR -->
+<section class="view" id="v-gear">
+  <div class="card">
+    <div class="label">Who's coming</div>
+    <div class="row">
+      <input type="text" id="memberName" placeholder="Add a name" maxlength="20">
+      <button class="ghost" id="addMember">＋</button>
+    </div>
+    <div class="chips" id="members"></div>
+  </div>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <div class="label" style="margin:0">Gear list</div>
+      <div class="muted" id="gearCount"></div>
+    </div>
+    <div class="progress"><i id="gearBar"></i></div>
+    <div class="row" style="margin-top:12px">
+      <input type="text" id="itemName" placeholder="Add item (e.g. Firewood)" maxlength="40">
+      <button class="ghost" id="addItem">＋</button>
+    </div>
+    <div id="items" style="margin-top:6px"></div>
+    <div class="row" style="margin-top:12px;flex-wrap:wrap">
+      <button class="ghost" id="loadPreset">🏜️ Desert starter list</button>
+      <button class="ghost" id="shareList">💬 Share on WhatsApp</button>
+      <button class="ghost" id="clearDone">🧹 Clear packed</button>
+    </div>
+  </div>
+</section>
+</main>
+
+<nav>
+  <button class="on" data-view="camp"><span>🧭</span>Back to camp</button>
+  <button data-view="gear"><span>🎒</span>Gear</button>
+</nav>
+<div class="toast" id="toast"></div>
+
+<script>
+// ---------- storage ----------
+const store={get(k,d){try{const v=localStorage.getItem('db_'+k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem('db_'+k,JSON.stringify(v))}catch(e){}}};
+const $=id=>document.getElementById(id);
+function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),1800)}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+
+// ---------- night mode ----------
+if(store.get('night',false))document.body.classList.add('night');
+$('nightBtn').onclick=()=>{document.body.classList.toggle('night');store.set('night',document.body.classList.contains('night'))};
+
+// ---------- tabs ----------
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('.view').forEach(v=>v.classList.toggle('on',v.id==='v-'+b.dataset.view));
+});
+
+// ---------- geo math ----------
+const R=6371000,rad=d=>d*Math.PI/180,deg=r=>r*180/Math.PI;
+function distance(a,b){const dLat=rad(b.lat-a.lat),dLon=rad(b.lon-a.lon);const h=Math.sin(dLat/2)**2+Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(dLon/2)**2;return 2*R*Math.asin(Math.sqrt(h))}
+function bearing(a,b){const y=Math.sin(rad(b.lon-a.lon))*Math.cos(rad(b.lat));const x=Math.cos(rad(a.lat))*Math.sin(rad(b.lat))-Math.sin(rad(a.lat))*Math.cos(rad(b.lat))*Math.cos(rad(b.lon-a.lon));return (deg(Math.atan2(y,x))+360)%360}
+const dirs=['N','NE','E','SE','S','SW','W','NW'];const cardinal=b=>dirs[Math.round(b/45)%8];
+function fmtDist(m){return m<1000?Math.round(m)+' m':(m/1000).toFixed(m<10000?2:1)+' km'}
+
+// ---------- spots ----------
+let spots=store.get('spots',[]);let selected=store.get('selected',null);
+function renderSpots(){
+  const el=$('spots');
+  if(!spots.length){el.innerHTML='<div class="muted">Nothing saved yet. Stand at your camp or car and tap Save.</div>';}
+  else el.innerHTML=spots.map(s=>`<div class="spot ${s.id===selected?'sel':''}" data-id="${s.id}"><div class="name">${esc(s.name)}<small>${new Date(s.t).toLocaleString([], {weekday:'short',hour:'2-digit',minute:'2-digit'})} · ±${Math.round(s.acc)} m</small></div><button class="x" data-del="${s.id}">✕</button></div>`).join('');
+  const t=spots.find(s=>s.id===selected);$('targetLabel').textContent=t?'Guiding to: '+t.name:'No spot selected';
+}
+$('spots').onclick=e=>{
+  const del=e.target.closest('[data-del]');
+  if(del){spots=spots.filter(s=>s.id!==del.dataset.del);if(selected===del.dataset.del)selected=spots[0]?.id||null;store.set('spots',spots);store.set('selected',selected);renderSpots();update();return}
+  const row=e.target.closest('.spot');if(row){selected=row.dataset.id;store.set('selected',selected);renderSpots();update();}
+};
+function saveSpot(name){
+  name=(name||'').trim()||'Spot '+(spots.length+1);
+  if(!navigator.geolocation){toast('GPS not available');return}
+  toast('Getting GPS fix…');
+  navigator.geolocation.getCurrentPosition(p=>{
+    const s={id:Date.now().toString(36),name,lat:p.coords.latitude,lon:p.coords.longitude,acc:p.coords.accuracy,t:Date.now()};
+    spots.unshift(s);selected=s.id;store.set('spots',spots);store.set('selected',selected);$('spotName').value='';renderSpots();update();
+    toast('Saved “'+name+'” ✓');
+  },err=>toast(err.code===1?'Allow location access first':'No GPS fix, try again in the open'),{enableHighAccuracy:true,timeout:20000,maximumAge:0});
+}
+$('saveSpot').onclick=()=>saveSpot($('spotName').value);
+document.querySelectorAll('[data-quick]').forEach(b=>b.onclick=()=>saveSpot(b.dataset.quick));
+
+// ---------- tracking + compass ----------
+let pos=null,heading=null,watchId=null,tracking=false,arrowAngle=0,roseAngle=0;
+function smooth(prev,target){let d=((target-prev)%360+540)%360-180;return prev+d}
+function update(){
+  const t=spots.find(s=>s.id===selected);
+  if(!t||!pos){if(!tracking)$('dist').textContent='—';return}
+  const d=distance(pos,t),b=bearing(pos,t);
+  $('dist').textContent=d<Math.max(8,pos.acc)?'You’re here 🎉':fmtDist(d);
+  if(heading!=null){
+    arrowAngle=smooth(arrowAngle,b-heading);roseAngle=smooth(roseAngle,-heading);
+    $('arrow').style.transform=`rotate(${arrowAngle}deg)`;$('rose').style.transform=`rotate(${roseAngle}deg)`;
+    $('bearingTxt').textContent=`Head ${cardinal(b)} (${Math.round(b)}°) · follow the arrow`;
+  }else{
+    arrowAngle=smooth(arrowAngle,b);$('arrow').style.transform=`rotate(${arrowAngle}deg)`;$('rose').style.transform='rotate(0deg)';
+    $('bearingTxt').textContent=`Head ${cardinal(b)} (${Math.round(b)}°) · no compass, the dial shows north up`;
+  }
+  $('status').textContent=`GPS ±${Math.round(pos.acc)} m`+(heading!=null?` · compass ${Math.round(heading)}°`:'');
+}
+function onOrient(e){
+  let h=null;
+  if(typeof e.webkitCompassHeading==='number')h=e.webkitCompassHeading;
+  else if(e.absolute&&e.alpha!=null)h=(360-e.alpha)%360;
+  if(h==null)return;
+  const so=(screen.orientation&&screen.orientation.angle)||window.orientation||0;
+  heading=(h+so+360)%360;update();
+}
+async function startCompass(){
+  try{
+    if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function'){
+      const r=await DeviceOrientationEvent.requestPermission();if(r!=='granted'){toast('Compass permission denied');return}
+    }
+  }catch(e){}
+  if('ondeviceorientationabsolute' in window)window.addEventListener('deviceorientationabsolute',onOrient);
+  else window.addEventListener('deviceorientation',onOrient);
+}
+function stopCompass(){window.removeEventListener('deviceorientationabsolute',onOrient);window.removeEventListener('deviceorientation',onOrient)}
+let wakeLock=null;
+async function keepAwake(on){try{if(on&&'wakeLock' in navigator)wakeLock=await navigator.wakeLock.request('screen');else if(wakeLock){wakeLock.release();wakeLock=null}}catch(e){}}
+$('trackBtn').onclick=async()=>{
+  if(tracking){tracking=false;navigator.geolocation.clearWatch(watchId);stopCompass();keepAwake(false);$('trackBtn').textContent='▶ Start guiding';$('status').textContent='Paused';return}
+  if(!spots.length){toast('Save a spot first');return}
+  if(!navigator.geolocation){toast('GPS not available');return}
+  tracking=true;$('trackBtn').textContent='■ Stop';$('status').textContent='Waiting for GPS…';
+  await startCompass();keepAwake(true);
+  watchId=navigator.geolocation.watchPosition(p=>{pos={lat:p.coords.latitude,lon:p.coords.longitude,acc:p.coords.accuracy};update()},
+    err=>{$('status').textContent=err.code===1?'Location blocked: allow it in settings':'Searching for GPS…'},{enableHighAccuracy:true,maximumAge:2000,timeout:30000});
+};
+document.addEventListener('visibilitychange',()=>{if(tracking&&document.visibilityState==='visible')keepAwake(true)});
+
+// ---------- gear ----------
+let members=store.get('members',[]);let items=store.get('items',[]);
+const preset=['Tent','Sleeping bags','Camping chairs','Firewood','Charcoal','BBQ grill','Lighter / matches','Cooler box + ice','Water (5L per person)','Food & marinated meat','Plates, cups, cutlery','Trash bags','Torch / headlamps','Power bank','First aid kit','Shovel','Tyre pressure gauge','Tow rope','Mat / carpet','Warm jacket (nights get cold)'];
+function saveGear(){store.set('members',members);store.set('items',items)}
+function renderGear(){
+  $('members').innerHTML=members.length?members.map(m=>`<button class="chip" data-mdel="${esc(m)}">${esc(m)} ✕</button>`).join(''):'<span class="muted">Add your crew so you can assign items.</span>';
+  const opts=m=>`<option value="">Who?</option>`+members.map(x=>`<option ${x===m?'selected':''}>${esc(x)}</option>`).join('');
+  $('items').innerHTML=items.length?items.map(i=>`<div class="item ${i.done?'done':''}" data-id="${i.id}"><input type="checkbox" ${i.done?'checked':''}><div class="t">${esc(i.name)}</div><select>${opts(i.who)}</select><button class="x" data-idel="${i.id}">✕</button></div>`).join(''):'<div class="muted" style="padding-top:8px">No items yet. Add your own or load the starter list.</div>';
+  const done=items.filter(i=>i.done).length;$('gearCount').textContent=items.length?`${done}/${items.length} packed`:'';
+  $('gearBar').style.width=items.length?(done/items.length*100)+'%':'0';
+}
+$('addMember').onclick=()=>{const n=$('memberName').value.trim();if(n&&!members.includes(n)){members.push(n);saveGear();renderGear()}$('memberName').value=''};
+$('memberName').onkeydown=e=>{if(e.key==='Enter')$('addMember').click()};
+$('members').onclick=e=>{const b=e.target.closest('[data-mdel]');if(!b)return;const m=b.dataset.mdel;members=members.filter(x=>x!==m);items.forEach(i=>{if(i.who===m)i.who=''});saveGear();renderGear()};
+function addItem(name){items.push({id:Math.random().toString(36).slice(2,9),name,who:'',done:false})}
+$('addItem').onclick=()=>{const n=$('itemName').value.trim();if(n){addItem(n);saveGear();renderGear()}$('itemName').value=''};
+$('itemName').onkeydown=e=>{if(e.key==='Enter')$('addItem').click()};
+$('items').onclick=e=>{const d=e.target.closest('[data-idel]');if(d){items=items.filter(i=>i.id!==d.dataset.idel);saveGear();renderGear()}};
+$('items').onchange=e=>{const row=e.target.closest('.item');const it=items.find(i=>i.id===row.dataset.id);if(!it)return;
+  if(e.target.type==='checkbox')it.done=e.target.checked;else if(e.target.tagName==='SELECT')it.who=e.target.value;saveGear();renderGear()};
+$('loadPreset').onclick=()=>{let n=0;preset.forEach(p=>{if(!items.some(i=>i.name.toLowerCase()===p.toLowerCase())){addItem(p);n++}});saveGear();renderGear();toast(n?`Added ${n} items`:'Already added')};
+$('clearDone').onclick=()=>{items=items.filter(i=>!i.done);saveGear();renderGear()};
+$('shareList').onclick=()=>{
+  if(!items.length){toast('List is empty');return}
+  const byWho={};items.forEach(i=>{const k=i.who||'Unassigned';(byWho[k]=byWho[k]||[]).push((i.done?'✅ ':'⬜ ')+i.name)});
+  const txt='🏜️ Camping gear list\n\n'+Object.entries(byWho).map(([w,l])=>`*${w}*\n`+l.join('\n')).join('\n\n');
+  location.href='https://wa.me/?text='+encodeURIComponent(txt);
+};
+
+renderSpots();renderGear();
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>
