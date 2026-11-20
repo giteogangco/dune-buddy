@@ -64,6 +64,9 @@ nav button span{display:block;font-size:22px}
 .toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--accent);color:#1b1410;padding:10px 16px;border-radius:12px;font-weight:600;opacity:0;transition:opacity .25s;pointer-events:none;z-index:9}
 .toast.show{opacity:1}
 .muted{color:var(--dim);font-size:14px}
+.sync-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--dim);margin-right:5px;vertical-align:middle}
+.sync-dot.on{background:var(--good)}
+.sync-dot.off{background:var(--dim)}
 </style>
 </head>
 <body>
@@ -113,6 +116,15 @@ nav button span{display:block;font-size:22px}
 <!-- GEAR -->
 <section class="view" id="v-gear">
   <div class="card">
+    <div class="label">Shared room</div>
+    <div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <div id="syncStatus" style="font-size:13px"><span class="sync-dot off"></span><span class="sync-text">Connecting…</span></div>
+      <button class="ghost" id="shareRoom" style="font-size:14px;padding:8px 12px">🔗 Share link</button>
+    </div>
+    <div style="font-size:12px;color:var(--dim);margin-top:6px">Everyone with the same link sees this list live.</div>
+  </div>
+
+  <div class="card">
     <div class="label">Who's coming</div>
     <div class="row">
       <input type="text" id="memberName" placeholder="Add a name" maxlength="20">
@@ -147,12 +159,28 @@ nav button span{display:block;font-size:22px}
 </nav>
 <div class="toast" id="toast"></div>
 
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
 <script>
 // ---------- storage ----------
 const store={get(k,d){try{const v=localStorage.getItem('db_'+k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem('db_'+k,JSON.stringify(v))}catch(e){}}};
 const $=id=>document.getElementById(id);
 function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),1800)}
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+
+// ---------- room id from URL hash ----------
+const roomId = (() => {
+  const h = location.hash.slice(1);
+  if (h && /^[a-z0-9]{4,12}$/.test(h)) return h;
+  const saved = store.get('room', null);
+  if (saved) { history.replaceState(null, '', '#' + saved); return saved; }
+  const id = Math.random().toString(36).slice(2, 8);
+  store.set('room', id);
+  history.replaceState(null, '', '#' + id);
+  return id;
+})();
 
 // ---------- night mode ----------
 if(store.get('night',false))document.body.classList.add('night');
@@ -191,7 +219,7 @@ function saveSpot(name){
   navigator.geolocation.getCurrentPosition(p=>{
     const s={id:Date.now().toString(36),name,lat:p.coords.latitude,lon:p.coords.longitude,acc:p.coords.accuracy,t:Date.now()};
     spots.unshift(s);selected=s.id;store.set('spots',spots);store.set('selected',selected);$('spotName').value='';renderSpots();update();
-    toast('Saved “'+name+'” ✓');
+    toast('Saved "'+name+'" ✓');
   },err=>toast(err.code===1?'Allow location access first':'No GPS fix, try again in the open'),{enableHighAccuracy:true,timeout:20000,maximumAge:0});
 }
 $('saveSpot').onclick=()=>saveSpot($('spotName').value);
@@ -204,7 +232,7 @@ function update(){
   const t=spots.find(s=>s.id===selected);
   if(!t||!pos){if(!tracking)$('dist').textContent='—';return}
   const d=distance(pos,t),b=bearing(pos,t);
-  $('dist').textContent=d<Math.max(8,pos.acc)?'You’re here 🎉':fmtDist(d);
+  $('dist').textContent=d<Math.max(8,pos.acc)?'You\'re here 🎉':fmtDist(d);
   if(heading!=null){
     arrowAngle=smooth(arrowAngle,b-heading);roseAngle=smooth(roseAngle,-heading);
     $('arrow').style.transform=`rotate(${arrowAngle}deg)`;$('rose').style.transform=`rotate(${roseAngle}deg)`;
@@ -249,7 +277,12 @@ document.addEventListener('visibilitychange',()=>{if(tracking&&document.visibili
 // ---------- gear ----------
 let members=store.get('members',[]);let items=store.get('items',[]);
 const preset=['Tent','Sleeping bags','Camping chairs','Firewood','Charcoal','BBQ grill','Lighter / matches','Cooler box + ice','Water (5L per person)','Food & marinated meat','Plates, cups, cutlery','Trash bags','Torch / headlamps','Power bank','First aid kit','Shovel','Tyre pressure gauge','Tow rope','Mat / carpet','Warm jacket (nights get cold)'];
-function saveGear(){store.set('members',members);store.set('items',items)}
+let isSyncingFromRemote = false;
+function saveGear(){
+  store.set('members',members);
+  store.set('items',items);
+  if (!isSyncingFromRemote) syncUp();
+}
 function renderGear(){
   $('members').innerHTML=members.length?members.map(m=>`<button class="chip" data-mdel="${esc(m)}">${esc(m)} ✕</button>`).join(''):'<span class="muted">Add your crew so you can assign items.</span>';
   const opts=m=>`<option value="">Who?</option>`+members.map(x=>`<option ${x===m?'selected':''}>${esc(x)}</option>`).join('');
@@ -273,6 +306,64 @@ $('shareList').onclick=()=>{
   const byWho={};items.forEach(i=>{const k=i.who||'Unassigned';(byWho[k]=byWho[k]||[]).push((i.done?'✅ ':'⬜ ')+i.name)});
   const txt='🏜️ Camping gear list\n\n'+Object.entries(byWho).map(([w,l])=>`*${w}*\n`+l.join('\n')).join('\n\n');
   location.href='https://wa.me/?text='+encodeURIComponent(txt);
+};
+
+// ---------- firebase sync ----------
+function setSyncStatus(state) {
+  const dot = $('syncStatus').querySelector('.sync-dot');
+  const txt = $('syncStatus').querySelector('.sync-text');
+  if (state === 'online') {
+    dot.className = 'sync-dot on';
+    txt.textContent = 'Online — crew sees changes live';
+  } else {
+    dot.className = 'sync-dot off';
+    txt.textContent = 'Offline — changes saved locally';
+  }
+}
+
+let roomRef = null;
+function syncUp() {
+  if (!roomRef) return;
+  roomRef.set({ members, items }).catch(() => {});
+}
+
+try {
+  firebase.initializeApp({
+    apiKey: "AIzaSyAC5_cos9bXFXMxtpxmY6s5jFeiQvowZw8",
+    authDomain: "dune-buddy.firebaseapp.com",
+    projectId: "dune-buddy",
+    storageBucket: "dune-buddy.firebasestorage.app",
+    messagingSenderId: "149634320837",
+    appId: "1:149634320837:web:274ab30cfb455e161f63ac"
+  });
+  const db = firebase.firestore();
+  db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
+  roomRef = db.collection('rooms').doc(roomId);
+  roomRef.onSnapshot(snap => {
+    if (!snap.exists) { syncUp(); return; }
+    const data = snap.data();
+    isSyncingFromRemote = true;
+    members = data.members || members;
+    items = (data.items || items).map(i => ({id:i.id||Math.random().toString(36).slice(2,9),name:i.name||'',who:i.who||'',done:!!i.done}));
+    store.set('members', members);
+    store.set('items', items);
+    renderGear();
+    isSyncingFromRemote = false;
+    setSyncStatus('online');
+  }, () => setSyncStatus('offline'));
+} catch(e) {
+  setSyncStatus('offline');
+}
+
+$('shareRoom').onclick = () => {
+  const url = location.origin + location.pathname + '#' + roomId;
+  if (navigator.share) {
+    navigator.share({ title: 'Dune Buddy – Join our camp gear list', url });
+  } else if (navigator.clipboard) {
+    navigator.clipboard.writeText(url).then(() => toast('Room link copied! Share with crew 🏜️'));
+  } else {
+    prompt('Copy this link and send to your crew:', url);
+  }
 };
 
 renderSpots();renderGear();
